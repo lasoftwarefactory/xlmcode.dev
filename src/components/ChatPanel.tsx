@@ -1,11 +1,13 @@
-import { useEffect, useRef } from 'react'
-import { Check, FilePlus2, FilePen, Trash2 } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Check, FilePlus2, FilePen, Trash2, Pencil } from 'lucide-react'
 import type { ChatMessage } from '../../shared/types'
 import type { Activity } from '../lib/api'
 import { PromptInput } from './PromptInput'
 
-/** Left column: conversation history + live activity + prompt box. */
+/** Left column: header (chat name) + conversation history + live activity + input. */
 export function ChatPanel({
+  projectName,
+  onRename,
   messages,
   busy,
   error,
@@ -13,6 +15,8 @@ export function ChatPanel({
   streamingMessage,
   onSend,
 }: {
+  projectName: string
+  onRename: (name: string) => void
   messages: ChatMessage[]
   busy: boolean
   error: string | null
@@ -21,6 +25,7 @@ export function ChatPanel({
   onSend: (text: string) => void
 }) {
   const endRef = useRef<HTMLDivElement>(null)
+  const [renaming, setRenaming] = useState(false)
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -28,6 +33,29 @@ export function ChatPanel({
 
   return (
     <section className="flex h-full flex-col">
+      {/* Header — same height as the workspace tabs row */}
+      <header className="flex shrink-0 items-center border-b border-zinc-800 px-3 py-2.5">
+        <button
+          onClick={() => setRenaming(true)}
+          title="Rename chat"
+          className="flex min-w-0 items-center gap-1.5 rounded-md px-2 py-1.5 text-[13px] text-zinc-200 transition-colors hover:bg-zinc-900"
+        >
+          <span className="truncate font-medium">{projectName}</span>
+          <Pencil className="h-3.5 w-3.5 shrink-0 text-zinc-500" />
+        </button>
+      </header>
+
+      {renaming && (
+        <RenameModal
+          current={projectName}
+          onClose={() => setRenaming(false)}
+          onSave={(name) => {
+            onRename(name)
+            setRenaming(false)
+          }}
+        />
+      )}
+
       <div className="flex-1 select-text space-y-4 overflow-y-auto p-4">
         {messages.map((m, i) => (
           <Message key={i} role={m.role} content={m.content} />
@@ -122,5 +150,59 @@ function ThinkingTrace({
 function Spinner() {
   return (
     <span className="inline-block h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-zinc-700 border-t-zinc-300" />
+  )
+}
+
+/** Centered modal to rename the current chat/project. */
+function RenameModal({
+  current,
+  onClose,
+  onSave,
+}: {
+  current: string
+  onClose: () => void
+  onSave: (name: string) => void
+}) {
+  const [value, setValue] = useState(current)
+  const save = () => {
+    if (value.trim()) onSave(value)
+  }
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-sm rounded-xl border border-zinc-800 bg-zinc-950 p-5 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 className="text-[15px] font-medium">Rename chat</h2>
+        <input
+          autoFocus
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') save()
+            if (e.key === 'Escape') onClose()
+          }}
+          className="mt-4 w-full select-text rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-[14px] text-zinc-100 outline-none focus:border-zinc-600"
+        />
+        <div className="mt-5 flex justify-end gap-2 text-[13px]">
+          <button
+            onClick={onClose}
+            className="rounded-lg px-3.5 py-1.5 text-zinc-400 hover:text-zinc-100"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={save}
+            disabled={!value.trim()}
+            className="rounded-lg bg-zinc-50 px-3.5 py-1.5 font-medium text-black transition-colors hover:bg-white disabled:opacity-50"
+          >
+            Save
+          </button>
+        </div>
+      </div>
+    </div>
   )
 }

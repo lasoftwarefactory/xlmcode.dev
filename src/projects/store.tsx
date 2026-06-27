@@ -52,6 +52,8 @@ interface ProjectsContextValue {
   send: (slug: string, text: string) => void
   /** Restore a project's files to a previous checkpoint. */
   restoreVersion: (slug: string, versionId: string) => void
+  /** Rename a project (display name; reflected in the sidebar). */
+  renameProject: (slug: string, name: string) => void
 }
 
 const ProjectsContext = createContext<ProjectsContextValue | null>(null)
@@ -191,6 +193,11 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
     })
   }
 
+  const renameProject = (slug: string, name: string) => {
+    const trimmed = name.trim()
+    if (trimmed) patch(slug, { name: trimmed })
+  }
+
   const value: ProjectsContextValue = {
     projects: Object.values(ref.current).reverse(),
     getProject: (slug) => ref.current[slug],
@@ -198,6 +205,7 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
     createFromFiles,
     send: (slug, text) => void send(slug, text),
     restoreVersion,
+    renameProject,
   }
 
   return (
