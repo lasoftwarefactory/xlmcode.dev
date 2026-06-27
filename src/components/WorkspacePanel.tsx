@@ -5,12 +5,68 @@ import {
   SandpackCodeEditor,
   SandpackFileExplorer,
 } from '@codesandbox/sandpack-react'
-import { Monitor, Smartphone, Download } from 'lucide-react'
+import { Monitor, Smartphone, Download, History } from 'lucide-react'
 import type { FileTree } from '../../shared/types'
+import type { Version } from '../projects/store'
 import { SANDPACK_TEMPLATE, TAILWIND_CDN, sandpackTheme } from '../lib/project'
 import { downloadProjectZip } from '../lib/export'
 
 type Device = 'desktop' | 'mobile'
+
+/** Dropdown listing local checkpoints; restore sets the project back to one. */
+function VersionMenu({
+  versions,
+  onRestore,
+}: {
+  versions: Version[]
+  onRestore: (id: string) => void
+}) {
+  const [open, setOpen] = useState(false)
+  if (versions.length === 0) return null
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="flex items-center gap-1.5 rounded-md border border-zinc-800 px-3 py-1.5 text-zinc-300 transition-colors hover:border-zinc-700 hover:text-zinc-50"
+        title="Version history"
+      >
+        <History className="h-4 w-4" />
+        v{versions.length}
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 z-20 mt-1 max-h-80 w-72 overflow-y-auto rounded-lg border border-zinc-800 bg-zinc-950 p-1 shadow-xl">
+            {versions
+              .map((v, i) => ({ v, n: i + 1 }))
+              .reverse()
+              .map(({ v, n }) => (
+                <div
+                  key={v.id}
+                  className="flex items-center justify-between gap-2 rounded-md px-2.5 py-2 hover:bg-zinc-900"
+                >
+                  <span className="min-w-0 flex-1 truncate text-[12.5px] text-zinc-300">
+                    <span className="text-zinc-500">v{n} · </span>
+                    {v.label}
+                  </span>
+                  <button
+                    onClick={() => {
+                      onRestore(v.id)
+                      setOpen(false)
+                    }}
+                    className="shrink-0 rounded border border-zinc-800 px-2 py-1 text-[11.5px] text-zinc-400 hover:border-zinc-700 hover:text-zinc-200"
+                  >
+                    Restore
+                  </button>
+                </div>
+              ))}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
 
 type Tab = 'preview' | 'code' | 'contract'
 const TABS: { id: Tab; label: string }[] = [
@@ -43,9 +99,13 @@ function hashTree(tree: FileTree): number {
 export function WorkspacePanel({
   fileTree,
   projectName = 'stellar-app',
+  versions = [],
+  onRestore,
 }: {
   fileTree: FileTree
   projectName?: string
+  versions?: Version[]
+  onRestore?: (id: string) => void
 }) {
   const [tab, setTab] = useState<Tab>('preview')
   const [device, setDevice] = useState<Device>('desktop')
@@ -86,6 +146,9 @@ export function WorkspacePanel({
                 <Smartphone className="h-4 w-4" />
               </button>
             </div>
+          )}
+          {onRestore && (
+            <VersionMenu versions={versions} onRestore={onRestore} />
           )}
           <button
             onClick={() => void downloadProjectZip(projectName, fileTree)}

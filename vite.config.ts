@@ -37,16 +37,20 @@ function devApi(env: Record<string, string>): Plugin {
             const apiKey = env.OPENAI_API_KEY
             if (!apiKey) return send(401, { error: 'OPENAI_API_KEY not set in .env.local' })
 
-            // Loaded through Vite so the TS + shared imports just work.
-            const { runChat } = await server.ssrLoadModule('/api/_lib/llm.ts')
-            const result = await runChat({
+            // Stream the generated JSON to the client as it's produced.
+            const { streamChat } = await server.ssrLoadModule('/api/_lib/llm.ts')
+            const result = streamChat({
               apiKey,
               model: env.OPENAI_MODEL,
               fileTree: body.fileTree ?? {},
               history: body.history ?? [],
               userMessage: body.userMessage ?? '',
             })
-            return send(200, result)
+            res.statusCode = 200
+            res.setHeader('content-type', 'text/plain; charset=utf-8')
+            for await (const chunk of result.textStream) res.write(chunk)
+            res.end()
+            return
           }
 
           return send(404, { error: 'Not found' })

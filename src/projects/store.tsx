@@ -6,7 +6,12 @@ import {
   type ReactNode,
 } from 'react'
 import type { ChatMessage, FileTree } from '../../shared/types'
-import { sendChat } from '../lib/api'
+import {
+  sendChat,
+  parseActivity,
+  parseStreamingMessage,
+  type Activity,
+} from '../lib/api'
 import { applyFileOps, initialFileTree } from '../lib/project'
 
 /**
@@ -14,8 +19,15 @@ import { applyFileOps, initialFileTree } from '../lib/project'
  * navigation between the landing (/) and the editor (/projects/:slug).
  *
  * Not persisted — a hard refresh loses projects. Supabase persistence is
- * Milestone 5; until then this is a single-session store.
+ * Milestone 5; version history is kept locally here until then.
  */
+export interface Version {
+  id: string
+  label: string
+  fileTree: FileTree
+  createdAt: number
+}
+
 export interface ProjectState {
   slug: string
   name: string
@@ -23,18 +35,23 @@ export interface ProjectState {
   fileTree: FileTree
   busy: boolean
   error: string | null
+  /** Live activity during streaming (cosmetic): files being created/edited. */
+  activity: Activity[]
+  /** Partial assistant message while streaming. */
+  streamingMessage: string
+  /** Local checkpoint history (newest last). */
+  versions: Version[]
 }
 
 interface ProjectsContextValue {
   /** All projects, newest first — for the sidebar history. */
   projects: ProjectState[]
   getProject: (slug: string) => ProjectState | undefined
-  /** Create a project from the first prompt, kick off generation, return its slug. */
   createProject: (prompt: string) => string
-  /** Create a project from predefined files (no LLM call), return its slug. */
   createFromFiles: (name: string, files: FileTree) => string
-  /** Send a follow-up message in an existing project. */
   send: (slug: string, text: string) => void
+  /** Restore a project's files to a previous checkpoint. */
+  restoreVersion: (slug: string, versionId: string) => void
 }
 
 const ProjectsContext = createContext<ProjectsContextValue | null>(null)
@@ -51,10 +68,16 @@ function deriveName(prompt: string): string {
   return words.length > 48 ? words.slice(0, 48) : words
 }
 
+const newVersion = (label: string, fileTree: FileTree): Version => ({
+  id: crypto.randomUUID().slice(0, 8),
+  label,
+  fileTree,
+  createdAt: Date.now(),
+})
+
 export function ProjectsProvider({ children }: { children: ReactNode }) {
   const sessionId = useRef(crypto.randomUUID()).current
   const [, force] = useState(0)
-  // Ref is the source of truth for async reads; state bump triggers re-render.
   const ref = useRef<Record<string, ProjectState>>({})
 
   const commit = (next: Record<string, ProjectState>) => {
@@ -76,62 +99,96 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
       messages: [...history, { role: 'user', content: text }],
       busy: true,
       error: null,
+      activity: [],
+      streamingMessage: '',
     })
     try {
-      const res = await sendChat({
-        sessionId,
-        fileTree: p.fileTree,
-        history,
-        userMessage: text,
-      })
+      const res = await sendChat(
+        { sessionId, fileTree: p.fileTree, history, userMessage: text },
+        (acc) => {
+          patch(slug, {
+            activity: parseActivity(acc),
+            streamingMessage: parseStreamingMessage(acc),
+          })
+        },
+      )
       const latest = ref.current[slug]
+      const nextTree = applyFileOps(latest.fileTree, res.files)
       patch(slug, {
-        fileTree: applyFileOps(latest.fileTree, res.files),
-        messages: [...latest.messages, { role: 'assistant', content: res.message }],
+        fileTree: nextTree,
+        messages: [
+          ...latest.messages,
+          { role: 'assistant', content: res.message },
+        ],
         busy: false,
+        activity: [],
+        streamingMessage: '',
+        versions: [...latest.versions, newVersion(text, nextTree)],
       })
     } catch (err) {
       patch(slug, {
         busy: false,
+        activity: [],
+        streamingMessage: '',
         error: err instanceof Error ? err.message : 'Something went wrong',
       })
     }
   }
 
-  const createProject = (prompt: string): string => {
-    const id = crypto.randomUUID().slice(0, 6)
-    const name = deriveName(prompt)
-    const slug = `${kebab(name) || 'project'}-${id}`
+  const make = (
+    slug: string,
+    name: string,
+    fileTree: FileTree,
+    messages: ChatMessage[],
+    versions: Version[],
+  ) => {
     commit({
       ...ref.current,
       [slug]: {
         slug,
         name,
-        messages: [],
-        fileTree: initialFileTree(),
+        messages,
+        fileTree,
         busy: false,
         error: null,
+        activity: [],
+        streamingMessage: '',
+        versions,
       },
     })
+  }
+
+  const createProject = (prompt: string): string => {
+    const slug = `${kebab(deriveName(prompt)) || 'project'}-${crypto.randomUUID().slice(0, 6)}`
+    make(slug, deriveName(prompt), initialFileTree(), [], [])
     void send(slug, prompt)
     return slug
   }
 
   const createFromFiles = (name: string, files: FileTree): string => {
-    const id = crypto.randomUUID().slice(0, 6)
-    const slug = `${kebab(name) || 'project'}-${id}`
-    commit({
-      ...ref.current,
-      [slug]: {
-        slug,
-        name,
-        messages: [{ role: 'assistant', content: `Loaded "${name}".` }],
-        fileTree: files,
-        busy: false,
-        error: null,
-      },
-    })
+    const slug = `${kebab(name) || 'project'}-${crypto.randomUUID().slice(0, 6)}`
+    make(
+      slug,
+      name,
+      files,
+      [{ role: 'assistant', content: `Loaded "${name}".` }],
+      [newVersion('Initial template', files)],
+    )
     return slug
+  }
+
+  const restoreVersion = (slug: string, versionId: string) => {
+    const p = ref.current[slug]
+    if (!p) return
+    const v = p.versions.find((x) => x.id === versionId)
+    if (!v) return
+    patch(slug, {
+      fileTree: v.fileTree,
+      messages: [
+        ...p.messages,
+        { role: 'assistant', content: `Restored "${v.label}".` },
+      ],
+    })
   }
 
   const value: ProjectsContextValue = {
@@ -140,6 +197,7 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
     createProject,
     createFromFiles,
     send: (slug, text) => void send(slug, text),
+    restoreVersion,
   }
 
   return (
