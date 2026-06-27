@@ -1,18 +1,114 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   SandpackProvider,
   SandpackPreview,
   SandpackCodeEditor,
   SandpackFileExplorer,
   Navigator,
+  useSandpack,
+  useActiveCode,
 } from '@codesandbox/sandpack-react'
-import { Monitor, Smartphone, Download, History } from 'lucide-react'
+import {
+  Monitor,
+  Smartphone,
+  Download,
+  History,
+  Copy,
+  Check,
+  SquarePen,
+  Eye,
+  X,
+} from 'lucide-react'
 import type { FileTree } from '../../shared/types'
 import type { Version } from '../projects/store'
 import { SANDPACK_TEMPLATE, TAILWIND_CDN, sandpackTheme } from '../lib/project'
 import { downloadProjectZip } from '../lib/export'
 
 type Device = 'desktop' | 'mobile'
+
+/**
+ * Syncs user edits from the Sandpack editor back into our file tree (debounced),
+ * for files we own — so chat/LLM/export/versions stay consistent. Does NOT touch
+ * template default files. Must live inside SandpackProvider.
+ */
+function SandpackSync({
+  fileTree,
+  onSync,
+}: {
+  fileTree: FileTree
+  onSync: (files: FileTree) => void
+}) {
+  const { sandpack } = useSandpack()
+  const ftRef = useRef(fileTree)
+  ftRef.current = fileTree
+
+  // Sandpack normalizes line endings / trailing newline, so compare normalized
+  // content — otherwise the round-trip looks "edited" on load and after discard.
+  const norm = (s: string) => s.replace(/\r\n/g, '\n').replace(/\s+$/, '')
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      const ft = ftRef.current
+      const next: FileTree = {}
+      let changed = false
+      for (const path of Object.keys(ft)) {
+        const code = sandpack.files[path]?.code
+        if (code !== undefined) {
+          next[path] = code
+          if (norm(code) !== norm(ft[path])) changed = true
+        } else {
+          next[path] = ft[path]
+        }
+      }
+      if (changed) onSync(next)
+    }, 600)
+    return () => clearTimeout(t)
+  }, [sandpack.files, onSync])
+
+  return null
+}
+
+/** Copy + read-only/edit toggle, pinned top-right of the code editor. */
+function CodeBar({
+  editable,
+  setEditable,
+}: {
+  editable: boolean
+  setEditable: (v: boolean) => void
+}) {
+  const { code } = useActiveCode()
+  const [copied, setCopied] = useState(false)
+  return (
+    <div className="flex shrink-0 items-center justify-end gap-1.5 border-b border-zinc-800 px-2 py-1.5">
+      <button
+        onClick={() => {
+          void navigator.clipboard?.writeText(code)
+          setCopied(true)
+          setTimeout(() => setCopied(false), 1200)
+        }}
+        title="Copy file"
+        className="rounded-md border border-zinc-800 p-1.5 text-zinc-400 transition-colors hover:border-zinc-700 hover:text-zinc-100"
+      >
+        {copied ? (
+          <Check className="h-3.5 w-3.5 text-emerald-400" />
+        ) : (
+          <Copy className="h-3.5 w-3.5" />
+        )}
+      </button>
+      <button
+        onClick={() => setEditable(!editable)}
+        title={editable ? 'Switch to read-only' : 'Edit file'}
+        className={`rounded-md border p-1.5 transition-colors ${
+          editable
+            ? 'border-violet-500/50 text-violet-300'
+            : 'border-zinc-800 text-zinc-400 hover:border-zinc-700 hover:text-zinc-100'
+        }`}
+      >
+        {editable ? <Eye className="h-3.5 w-3.5" /> : <SquarePen className="h-3.5 w-3.5" />}
+      </button>
+    </div>
+  )
+}
 
 /** Dropdown listing local checkpoints; restore sets the project back to one. */
 function VersionMenu({
@@ -75,16 +171,6 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'code', label: 'Code' },
   { id: 'contract', label: 'Contract' },
 ]
-
-/** Cheap content hash so the Sandpack subtree remounts only when files change. */
-function hashTree(tree: FileTree): number {
-  const s = Object.entries(tree)
-    .map(([k, v]) => `${k}\0${v}`)
-    .join('\0')
-  let h = 5381
-  for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0
-  return h
-}
 
 /**
  * Custom preview top bar: the route navigator (back/forward/url) on the left,
@@ -150,15 +236,26 @@ export function WorkspacePanel({
   projectName = 'stellar-app',
   versions = [],
   onRestore,
+  generation = 0,
+  dirty = false,
+  onSyncFiles,
+  onDiscard,
+  onDeploy,
 }: {
   fileTree: FileTree
   projectName?: string
   versions?: Version[]
   onRestore?: (id: string) => void
+  generation?: number
+  dirty?: boolean
+  onSyncFiles?: (files: FileTree) => void
+  onDiscard?: () => void
+  onDeploy?: () => void
 }) {
   const [tab, setTab] = useState<Tab>('preview')
   const [device, setDevice] = useState<Device>('desktop')
   const [downloadOpen, setDownloadOpen] = useState(false)
+  const [editable, setEditable] = useState(false)
 
   return (
     <section className="flex h-full min-w-0 flex-1 flex-col">
@@ -191,13 +288,16 @@ export function WorkspacePanel({
       <div className="relative min-h-0 flex-1 bg-zinc-950">
         <div className="absolute inset-0">
           <SandpackProvider
-            key={hashTree(fileTree)}
+            key={generation}
             template={SANDPACK_TEMPLATE}
             files={fileTree}
             theme={sandpackTheme}
             options={{ externalResources: [TAILWIND_CDN] }}
             style={{ height: '100%' }}
           >
+            {onSyncFiles && (
+              <SandpackSync fileTree={fileTree} onSync={onSyncFiles} />
+            )}
             <div className="flex h-full flex-col">
               <div
                 className={
@@ -231,12 +331,15 @@ export function WorkspacePanel({
                 }
               >
                 <SandpackFileExplorer style={{ height: '100%', width: 200 }} />
-                <SandpackCodeEditor
-                  readOnly
-                  showLineNumbers
-                  showTabs={false}
-                  style={{ height: '100%', flex: 1 }}
-                />
+                <div className="flex min-w-0 flex-1 flex-col">
+                  <CodeBar editable={editable} setEditable={setEditable} />
+                  <SandpackCodeEditor
+                    readOnly={!editable}
+                    showLineNumbers
+                    showTabs={false}
+                    style={{ height: '100%', flex: 1 }}
+                  />
+                </div>
               </div>
             </div>
           </SandpackProvider>
@@ -245,6 +348,31 @@ export function WorkspacePanel({
         {tab === 'contract' && (
           <div className="absolute inset-0 flex items-center justify-center bg-black text-[13px] text-zinc-600">
             Deployed contracts appear here (Milestone 2).
+          </div>
+        )}
+
+        {dirty && (onDiscard || onDeploy) && (
+          <div className="absolute bottom-4 left-1/2 z-30 flex -translate-x-1/2 items-center gap-3 rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-2 shadow-2xl">
+            <span className="text-[13px] text-zinc-200">
+              You have unsaved edits
+            </span>
+            {onDiscard && (
+              <button
+                onClick={onDiscard}
+                className="flex items-center gap-1 rounded-md px-2 py-1 text-[12.5px] text-zinc-400 transition-colors hover:text-zinc-100"
+              >
+                <X className="h-3.5 w-3.5" />
+                Discard
+              </button>
+            )}
+            {onDeploy && (
+              <button
+                onClick={onDeploy}
+                className="rounded-md bg-zinc-50 px-3 py-1 text-[12.5px] font-medium text-black transition-colors hover:bg-white"
+              >
+                Deploy
+              </button>
+            )}
           </div>
         )}
       </div>

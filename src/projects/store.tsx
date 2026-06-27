@@ -41,6 +41,16 @@ export interface ProjectState {
   streamingMessage: string
   /** Local checkpoint history (newest last). */
   versions: Version[]
+  /**
+   * Bumped only on canonical changes (LLM apply, restore, discard) — it is the
+   * Sandpack remount key. User edits sync into fileTree WITHOUT bumping it, so
+   * the editor doesn't reset mid-typing.
+   */
+  generation: number
+  /** The last canonical file tree (to revert manual edits to). */
+  savedFileTree: FileTree
+  /** True when the user has manual, unsaved edits in the editor. */
+  dirty: boolean
 }
 
 interface ProjectsContextValue {
@@ -54,6 +64,12 @@ interface ProjectsContextValue {
   restoreVersion: (slug: string, versionId: string) => void
   /** Rename a project (display name; reflected in the sidebar). */
   renameProject: (slug: string, name: string) => void
+  /** Sync user edits from the editor into the file tree (no remount). */
+  syncFiles: (slug: string, files: FileTree) => void
+  /** Revert manual edits back to the last canonical file tree. */
+  discardEdits: (slug: string) => void
+  /** Accept the current edits as the saved baseline (clears the dirty toast). */
+  markSaved: (slug: string) => void
 }
 
 const ProjectsContext = createContext<ProjectsContextValue | null>(null)
@@ -118,6 +134,9 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
       const nextTree = applyFileOps(latest.fileTree, res.files)
       patch(slug, {
         fileTree: nextTree,
+        savedFileTree: nextTree,
+        dirty: false,
+        generation: latest.generation + 1,
         messages: [
           ...latest.messages,
           { role: 'assistant', content: res.message },
@@ -156,6 +175,9 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
         activity: [],
         streamingMessage: '',
         versions,
+        generation: 1,
+        savedFileTree: fileTree,
+        dirty: false,
       },
     })
   }
@@ -186,11 +208,43 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
     if (!v) return
     patch(slug, {
       fileTree: v.fileTree,
+      savedFileTree: v.fileTree,
+      dirty: false,
+      generation: p.generation + 1,
       messages: [
         ...p.messages,
         { role: 'assistant', content: `Restored "${v.label}".` },
       ],
     })
+  }
+
+  /** User edited files in the editor — update the tree without remounting. */
+  const syncFiles = (slug: string, files: FileTree) => {
+    const p = ref.current[slug]
+    if (!p) return
+    // dirty = differs from the saved baseline (robust against late syncs after
+    // a discard, which would otherwise re-mark the project dirty).
+    const dirty =
+      JSON.stringify(files) !== JSON.stringify(p.savedFileTree)
+    patch(slug, { fileTree: files, dirty })
+  }
+
+  /** Revert manual edits to the last canonical tree (remounts Sandpack). */
+  const discardEdits = (slug: string) => {
+    const p = ref.current[slug]
+    if (!p) return
+    patch(slug, {
+      fileTree: p.savedFileTree,
+      dirty: false,
+      generation: p.generation + 1,
+    })
+  }
+
+  /** Accept current edits as the new saved baseline (no remount, clears dirty). */
+  const markSaved = (slug: string) => {
+    const p = ref.current[slug]
+    if (!p) return
+    patch(slug, { savedFileTree: p.fileTree, dirty: false })
   }
 
   const renameProject = (slug: string, name: string) => {
@@ -206,6 +260,9 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
     send: (slug, text) => void send(slug, text),
     restoreVersion,
     renameProject,
+    syncFiles,
+    discardEdits,
+    markSaved,
   }
 
   return (

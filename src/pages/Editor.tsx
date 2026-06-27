@@ -8,7 +8,15 @@ import { useProjects } from '../projects/store'
 /** Route "/projects/:slug" — resizable chat | workspace (v0-style). */
 export function Editor() {
   const { slug } = useParams<{ slug: string }>()
-  const { getProject, send, restoreVersion, renameProject } = useProjects()
+  const {
+    getProject,
+    send,
+    restoreVersion,
+    renameProject,
+    syncFiles,
+    discardEdits,
+    markSaved,
+  } = useProjects()
   const project = slug ? getProject(slug) : undefined
   // While dragging the divider, kill pointer events on the preview so the
   // Sandpack iframe doesn't swallow the mouse and freeze the resize.
@@ -42,6 +50,11 @@ export function Editor() {
             projectName={project.slug}
             versions={project.versions}
             onRestore={(id) => restoreVersion(project.slug, id)}
+            generation={project.generation}
+            dirty={project.dirty}
+            onSyncFiles={(files) => syncFiles(project.slug, files)}
+            onDiscard={() => discardEdits(project.slug)}
+            onDeploy={() => markSaved(project.slug)}
           />
         </div>
       </Panel>
