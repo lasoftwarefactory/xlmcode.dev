@@ -57,9 +57,58 @@ const STARTER_APP = `export default function App() {
 }
 `
 
+// Cosmetic project files so the generated app reads like a real create-vite
+// project (and is ejectable). The Sandpack classic bundler runs from /App.tsx;
+// these don't change how it runs, only how the project looks in the Code tab.
+const PACKAGE_JSON = `{
+  "name": "stellar-app",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@vitejs/plugin-react": "^6.0.0",
+    "typescript": "~6.0.0",
+    "vite": "^8.0.0"
+  }
+}
+`
+
+const README = `# Stellar App
+
+Built with Stellable — React + TypeScript + TailwindCSS, ready to talk to
+Stellar smart contracts.
+
+\`\`\`bash
+pnpm install
+pnpm dev
+\`\`\`
+`
+
+/** Files present in every project regardless of content. */
+const BASE_FILES: FileTree = {
+  '/package.json': PACKAGE_JSON,
+  '/README.md': README,
+}
+
+/** Merge the base project files under a set of app files. */
+export function withBaseFiles(files: FileTree): FileTree {
+  return { ...BASE_FILES, ...files }
+}
+
 /** The blank canvas every new project starts from. */
 export function initialFileTree(): FileTree {
-  return { '/App.tsx': STARTER_APP }
+  return withBaseFiles({ '/App.tsx': STARTER_APP })
 }
 
 /** Apply the LLM's file operations to the tree (PLAN.md §5.4). Pure. */
@@ -162,6 +211,12 @@ export interface ExampleApp {
 }
 
 export const EXAMPLE_APPS: ExampleApp[] = [
-  { label: 'A landing page with a hero and a call-to-action button', files: { '/App.tsx': HERO_LANDING } },
-  { label: 'A todo list with add and delete', files: { '/App.tsx': TODO_APP } },
+  {
+    label: 'A landing page with a hero and a call-to-action button',
+    files: withBaseFiles({ '/App.tsx': HERO_LANDING }),
+  },
+  {
+    label: 'A todo list with add and delete',
+    files: withBaseFiles({ '/App.tsx': TODO_APP }),
+  },
 ]
