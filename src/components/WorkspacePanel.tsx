@@ -240,7 +240,7 @@ export function WorkspacePanel({
   dirty = false,
   onSyncFiles,
   onDiscard,
-  onDeploy,
+  onSave,
 }: {
   fileTree: FileTree
   projectName?: string
@@ -250,7 +250,7 @@ export function WorkspacePanel({
   dirty?: boolean
   onSyncFiles?: (files: FileTree) => void
   onDiscard?: () => void
-  onDeploy?: () => void
+  onSave?: () => void
 }) {
   const [tab, setTab] = useState<Tab>('preview')
   const [device, setDevice] = useState<Device>('desktop')
@@ -351,7 +351,7 @@ export function WorkspacePanel({
           </div>
         )}
 
-        {dirty && (onDiscard || onDeploy) && (
+        {dirty && (onDiscard || onSave) && (
           <div className="absolute bottom-4 left-1/2 z-30 flex -translate-x-1/2 items-center gap-3 rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-2 shadow-2xl">
             <span className="text-[13px] text-zinc-200">
               You have unsaved edits
@@ -365,12 +365,12 @@ export function WorkspacePanel({
                 Discard
               </button>
             )}
-            {onDeploy && (
+            {onSave && (
               <button
-                onClick={onDeploy}
+                onClick={onSave}
                 className="rounded-md bg-zinc-50 px-3 py-1 text-[12.5px] font-medium text-black transition-colors hover:bg-white"
               >
-                Deploy
+                Save
               </button>
             )}
           </div>

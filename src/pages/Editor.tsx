@@ -54,7 +54,7 @@ export function Editor() {
             dirty={project.dirty}
             onSyncFiles={(files) => syncFiles(project.slug, files)}
             onDiscard={() => discardEdits(project.slug)}
-            onDeploy={() => markSaved(project.slug)}
+            onSave={() => markSaved(project.slug)}
           />
         </div>
       </Panel>
