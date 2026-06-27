@@ -20,7 +20,7 @@ export function Editor() {
         error={project.error}
         onSend={(text) => send(project.slug, text)}
       />
-      <WorkspacePanel fileTree={project.fileTree} />
+      <WorkspacePanel fileTree={project.fileTree} projectName={project.slug} />
     </main>
   )
 }

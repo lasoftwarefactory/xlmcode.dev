@@ -7,6 +7,7 @@ import {
 } from '@codesandbox/sandpack-react'
 import type { FileTree } from '../../shared/types'
 import { SANDPACK_TEMPLATE, TAILWIND_CDN, sandpackTheme } from '../lib/project'
+import { downloadProjectZip } from '../lib/export'
 
 type Tab = 'preview' | 'code' | 'contract'
 const TABS: { id: Tab; label: string }[] = [
@@ -36,25 +37,39 @@ function hashTree(tree: FileTree): number {
  *   dark Sandpack chrome showing through.
  * - The `absolute inset-0` wrapper gives the iframe a concrete pixel box.
  */
-export function WorkspacePanel({ fileTree }: { fileTree: FileTree }) {
+export function WorkspacePanel({
+  fileTree,
+  projectName = 'stellar-app',
+}: {
+  fileTree: FileTree
+  projectName?: string
+}) {
   const [tab, setTab] = useState<Tab>('preview')
 
   return (
     <section className="flex min-w-0 flex-1 flex-col">
-      <nav className="flex shrink-0 items-center gap-1 border-b border-zinc-800 px-3 py-2.5 text-[13px]">
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
-            className={
-              tab === t.id
-                ? 'rounded-md bg-zinc-900 px-3 py-1.5 text-zinc-50'
-                : 'rounded-md px-3 py-1.5 text-zinc-500 transition-colors hover:text-zinc-300'
-            }
-          >
-            {t.label}
-          </button>
-        ))}
+      <nav className="flex shrink-0 items-center justify-between border-b border-zinc-800 px-3 py-2.5 text-[13px]">
+        <div className="flex items-center gap-1">
+          {TABS.map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className={
+                tab === t.id
+                  ? 'rounded-md bg-zinc-900 px-3 py-1.5 text-zinc-50'
+                  : 'rounded-md px-3 py-1.5 text-zinc-500 transition-colors hover:text-zinc-300'
+              }
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+        <button
+          onClick={() => void downloadProjectZip(projectName, fileTree)}
+          className="rounded-md border border-zinc-800 px-3 py-1.5 text-zinc-300 transition-colors hover:border-zinc-700 hover:text-zinc-50"
+        >
+          Download
+        </button>
       </nav>
 
       <div className="relative min-h-0 flex-1 bg-zinc-950">
