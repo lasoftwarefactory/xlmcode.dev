@@ -1,18 +1,18 @@
-# Stellarable — Brief de construcción del MVP
+# xlmcode — Brief de construcción del MVP
 
-> **Qué es este documento:** la especificación completa que vas a usar (Claude Code) para construir el MVP de **Stellarable** de principio a fin. Está pensado para que arranques a programar sin tener que adivinar arquitectura. Leelo entero antes de escribir código. Donde diga `TODO / VERIFICAR`, no inventes datos: dejá un placeholder y avisá.
+> **Qué es este documento:** la especificación completa que vas a usar (Claude Code) para construir el MVP de **xlmcode** de principio a fin. Está pensado para que arranques a programar sin tener que adivinar arquitectura. Leelo entero antes de escribir código. Donde diga `TODO / VERIFICAR`, no inventes datos: dejá un placeholder y avisá.
 
 ---
 
 ## 0. Resumen ejecutivo (leé esto primero)
 
-**Stellarable es un "Lovable/v0 pero para Stellar".** El usuario describe una dApp en lenguaje natural y la plataforma:
+**xlmcode es un "Lovable/v0 pero para Stellar".** El usuario describe una dApp en lenguaje natural y la plataforma:
 
 1. Genera el **frontend** (React + Vite + Tailwind) con un agente de IA y lo muestra en un **preview en vivo dentro del navegador** (Sandpack).
 2. Le permite **desplegar contratos inteligentes auditados** en la testnet de Stellar (sin escribir Rust) y/o **invocar protocolos ya desplegados** del ecosistema.
 3. **Conecta el frontend generado con esos contratos** automáticamente.
 
-El diferencial frente a Lovable/v0 (que solo hacen web apps comunes) y frente a StellarIDE (que es un IDE para devs que escriben Rust) es que **Stellarable junta el preview-de-frontend de Lovable con una capa on-chain de Stellar, para gente que no programa.**
+El diferencial frente a Lovable/v0 (que solo hacen web apps comunes) y frente a StellarIDE (que es un IDE para devs que escriben Rust) es que **xlmcode junta el preview-de-frontend de Lovable con una capa on-chain de Stellar, para gente que no programa.**
 
 **Decisión arquitectónica central (no la cambies):** los contratos NO se compilan en el navegador ni "en vivo". Usamos **WASM pre-compilados** que el usuario solo **configura** (parámetros), y el backend los **despliega**. Los protocolos externos (oráculos, DEX) no se despliegan: se **invocan** por su contract ID ya existente. Esto se llama "Camino B" en las notas de diseño y es lo que hace el MVP construible en pocos días.
 
@@ -24,7 +24,7 @@ El diferencial frente a Lovable/v0 (que solo hacen web apps comunes) y frente a 
 
 Esto es la fuente de confusión #1. Separalas mentalmente:
 
-- **La plataforma Stellarable** (`apps/web`): la app que construís vos. Tiene el chat, el panel de preview, las pestañas (Preview / Código / Contrato), el botón de deploy. Es una app Vite + Tailwind normal.
+- **La plataforma xlmcode** (`apps/web`): la app que construís vos. Tiene el chat, el panel de preview, las pestañas (Preview / Código / Contrato), el botón de deploy. Es una app Vite + Tailwind normal.
 - **La app del usuario** (la "app generada"): NO es un proyecto en disco. Es un **árbol de archivos en memoria** (`{ "src/App.tsx": "...", ... }`) que vive en el estado de la plataforma y se renderiza dentro de **Sandpack** (un iframe). El usuario nunca "instala" nada; su app corre client-side en el preview.
 
 > Regla mental: la plataforma es el editor; la app del usuario es el documento que se edita. Sandpack es el visor del documento.
@@ -122,7 +122,7 @@ Vercel espera las funciones serverless en una carpeta `/api` en la raíz. Hay do
 ### 4.1. Estructura de carpetas
 
 ```
-stellarable/
+xlmcode/
 ├── api/                      # funciones serverless de Vercel (cada archivo = endpoint)
 │   ├── chat.ts               # POST /api/chat
 │   ├── deploy.ts             # POST /api/deploy
@@ -263,7 +263,7 @@ Vive en el estado de React de `apps/web` (y se persiste en Supabase). El LLM nun
 `_lib/prompt.ts` debe construir algo así (en español o inglés, pero consistente):
 
 ````
-Sos el motor de generación de Stellarable. Generás y editás una aplicación
+Sos el motor de generación de xlmcode. Generás y editás una aplicación
 React + Vite + TailwindCSS que corre dentro de Sandpack, y que puede
 interactuar con contratos inteligentes de Stellar.
 
