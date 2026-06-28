@@ -11,8 +11,6 @@ import {
 } from '@codesandbox/sandpack-react'
 import { FileExplorer } from './FileTree'
 import { ContractsPanel } from './ContractsPanel'
-import { WalletsPanel } from './WalletsPanel'
-import { useWallet } from '../wallet/store'
 import {
   Monitor,
   Smartphone,
@@ -25,6 +23,7 @@ import {
   X,
   Wand2,
   AlertTriangle,
+  Mail,
 } from 'lucide-react'
 import type { FileTree, DeployedContract } from '../../shared/types'
 import type { Version } from '../projects/store'
@@ -355,12 +354,11 @@ function RestoreConfirm({
   )
 }
 
-type Tab = 'preview' | 'code' | 'contracts' | 'wallets' | 'console'
+type Tab = 'preview' | 'code' | 'contracts' | 'console'
 const TABS: { id: Tab; label: string }[] = [
   { id: 'preview', label: 'Preview' },
   { id: 'code', label: 'Code' },
   { id: 'contracts', label: 'Contracts' },
-  { id: 'wallets', label: 'Wallets' },
   { id: 'console', label: 'Console' },
 ]
 
@@ -471,7 +469,10 @@ export function WorkspacePanel({
   const [downloadOpen, setDownloadOpen] = useState(false)
   const [editable, setEditable] = useState(false)
   const [previewError, setPreviewError] = useState('')
-  const { wallet } = useWallet()
+  const [shareOpen, setShareOpen] = useState(false)
+  const [inviteEmail, setInviteEmail] = useState('')
+  const [invited, setInvited] = useState<string[]>([])
+  const [linkCopied, setLinkCopied] = useState(false)
 
   return (
     <section className="flex h-full min-w-0 flex-1 flex-col">
@@ -494,22 +495,12 @@ export function WorkspacePanel({
             </button>
           ))}
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setTab('wallets')}
-            className="rounded-full border border-zinc-800 px-3.5 py-1.5 text-zinc-300 transition-colors hover:border-zinc-700 hover:text-zinc-50"
-          >
-            {wallet
-              ? `${wallet.publicKey.slice(0, 6)}…${wallet.publicKey.slice(-4)}`
-              : 'Connect wallet'}
-          </button>
-          <button
-            onClick={() => setTab('contracts')}
-            className="rounded-full bg-zinc-50 px-3.5 py-1.5 font-medium text-black transition-colors hover:bg-white"
-          >
-            Deploy
-          </button>
-        </div>
+        <button
+          onClick={() => setShareOpen(true)}
+          className="rounded-full bg-zinc-50 px-3.5 py-1.5 font-medium text-black transition-colors hover:bg-white"
+        >
+          Share
+        </button>
       </nav>
 
       <div className="relative min-h-0 flex-1 bg-zinc-950">
@@ -586,7 +577,6 @@ export function WorkspacePanel({
           <ContractsPanel contracts={contracts} onDeployed={onDeployed ?? (() => {})} />
         )}
 
-        {tab === 'wallets' && <WalletsPanel slug={projectName} />}
 
         {previewError && (
           <div className="absolute bottom-4 left-1/2 z-30 flex w-[min(92%,560px)] -translate-x-1/2 items-start gap-3 rounded-xl border border-red-900/70 bg-red-950/90 px-3 py-2.5 shadow-2xl">
@@ -672,6 +662,111 @@ export function WorkspacePanel({
                 className="rounded-lg bg-zinc-50 px-3.5 py-1.5 font-medium text-black transition-colors hover:bg-white"
               >
                 Download
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {shareOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          onClick={() => setShareOpen(false)}
+        >
+          <div
+            className="w-full max-w-md rounded-xl border border-zinc-800 bg-zinc-950 p-5 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <h2 className="text-[15px] font-medium">Share “{projectName}”</h2>
+              <button
+                onClick={() => setShareOpen(false)}
+                className="rounded p-1 text-zinc-500 hover:text-zinc-200"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <p className="mt-1.5 text-[13px] text-zinc-400">
+              Invite people to collaborate on this project.
+            </p>
+
+            <form
+              className="mt-4 flex gap-2"
+              onSubmit={(e) => {
+                e.preventDefault()
+                const v = inviteEmail.trim()
+                if (!v) return
+                setInvited((p) => Array.from(new Set([...p, v])))
+                setInviteEmail('')
+              }}
+            >
+              <div className="flex flex-1 items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900/60 px-3">
+                <Mail className="h-3.5 w-3.5 text-zinc-500" />
+                <input
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  type="email"
+                  placeholder="name@email.com"
+                  className="w-full bg-transparent py-2 text-[13px] text-zinc-100 outline-none placeholder:text-zinc-600"
+                />
+              </div>
+              <button
+                type="submit"
+                className="rounded-lg bg-zinc-50 px-3.5 py-2 text-[13px] font-medium text-black transition-colors hover:bg-white"
+              >
+                Invite
+              </button>
+            </form>
+
+            <div className="mt-4">
+              <p className="mb-1.5 text-[11px] uppercase tracking-wide text-zinc-600">
+                People with access
+              </p>
+              <div className="flex items-center justify-between rounded-lg px-1 py-1.5">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-violet-500/15 text-[10px] font-semibold text-violet-300">
+                    YOU
+                  </div>
+                  <span className="text-[13px] text-zinc-200">You</span>
+                </div>
+                <span className="text-[12px] text-zinc-500">Owner</span>
+              </div>
+              {invited.map((email) => (
+                <div
+                  key={email}
+                  className="flex items-center justify-between rounded-lg px-1 py-1.5"
+                >
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-[11px] font-semibold text-zinc-300">
+                      {email[0]?.toUpperCase()}
+                    </div>
+                    <span className="truncate text-[13px] text-zinc-200">{email}</span>
+                  </div>
+                  <span className="shrink-0 text-[12px] text-zinc-500">Invited</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-4 flex items-center justify-between gap-2 rounded-lg border border-zinc-800 bg-zinc-900/40 px-3 py-2">
+              <code className="min-w-0 truncate font-mono text-[12px] text-zinc-400">
+                stellarable.app/p/{projectName}
+              </code>
+              <button
+                onClick={() => {
+                  void navigator.clipboard?.writeText(
+                    'https://stellarable.app/p/' + projectName,
+                  )
+                  setLinkCopied(true)
+                  setTimeout(() => setLinkCopied(false), 1200)
+                }}
+                className="flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-[12px] text-zinc-300 hover:text-zinc-50"
+              >
+                {linkCopied ? (
+                  <Check className="h-3.5 w-3.5 text-emerald-400" />
+                ) : (
+                  <Copy className="h-3.5 w-3.5" />
+                )}
+                {linkCopied ? 'Copied' : 'Copy link'}
               </button>
             </div>
           </div>
