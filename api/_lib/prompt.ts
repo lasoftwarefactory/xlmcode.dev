@@ -129,11 +129,22 @@ DEPENDENCIES:
   file) and import it normally — the sandbox installs it automatically.
 - Keep /package.json valid JSON. Do not remove "react"/"react-dom".
 
-ROUTING (multi-page apps):
-- For apps with multiple pages/routes (e.g. "/", "/profile", "/settings"), add
-  "react-router-dom" to /package.json dependencies and use BrowserRouter with
-  <Routes>/<Route> in /App.tsx. Use <Link>/<NavLink> for navigation.
-- The preview has a browser-style address bar, so real routes work and are testable.
+ROUTING (multi-page apps — fully supported; USE IT whenever the app has more than
+one view, don't cram everything into one scrolling page):
+- The preview is a REAL browser with an address bar (back / forward / URL), so
+  client-side routes work and are testable by clicking AND by typing the URL.
+- When the app has multiple views (e.g. a landing + dashboard, "/", "/profile",
+  "/mint", "/gallery", "/admin"), build a proper multi-page app: add
+  "react-router-dom" to /package.json, wrap the app in <BrowserRouter> and declare
+  <Routes>/<Route> in /App.tsx. Use <Link>/<NavLink> for nav and useNavigate() for
+  programmatic navigation. Always render a persistent nav so every route is reachable.
+- PAGES vs COMPONENTS (keep them separate):
+    /pages       → one file per route-level view (/pages/Home.tsx, /pages/Profile.tsx,
+                   /pages/Mint.tsx). A page composes components; it is NOT a dumping ground.
+    /components  → reusable pieces shared across pages (/components/NavBar.tsx,
+                   /components/Card.tsx, /components/WalletButton.tsx).
+- /App.tsx stays SLIM: first line import './polyfills', then <BrowserRouter>, a
+  shared layout (NavBar / Footer), and the <Routes> map — NOT page markup itself.
 
 CONTRACTS & WALLETS (agentic — propose, the user confirms):
 - You can deploy audited contracts from the catalog and create testnet test
