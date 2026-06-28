@@ -1,0 +1,43 @@
+# Supabase CLI config. `supabase link --project-ref <ref>` then `supabase db push`.
+# The remote project's Auth (Google provider + email OTP template) is configured
+# in the dashboard; this file is mainly for the CLI + local dev.
+project_id = "xlmcode"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+major_version = 15
+
+[studio]
+enabled = true
+port = 54323
+
+[auth]
+enabled = true
+site_url = "https://app.xlmcode.dev"
+additional_redirect_urls = [
+  "https://app.xlmcode.dev",
+  "https://api.xlmcode.dev/auth/callback",
+  "http://localhost:5173",
+  "http://localhost:8787/auth/callback",
+]
+jwt_expiry = 3600
+enable_signup = true
+
+# Email: OTP code (no magic link, no password). Set the email template to use
+# {{ .Token }} in the dashboard so users get a 6-digit code.
+[auth.email]
+enable_signup = true
+enable_confirmations = false
+# Password sign-in is not used by the app; OTP + Google only.
+
+[auth.external.google]
+enabled = true
+client_id = "env(GOOGLE_CLIENT_ID)"
+secret = "env(GOOGLE_CLIENT_SECRET)"
