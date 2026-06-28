@@ -14,7 +14,7 @@ export function BuildHome() {
   const startExample = (ex: (typeof EXAMPLE_APPS)[number]) => {
     navigate(
       ex.files
-        ? `/projects/${createFromFiles(ex.label, ex.files)}`
+        ? `/projects/${createFromFiles(ex.label, ex.files, ex.contracts)}`
         : `/projects/${createProject(ex.prompt!)}`,
     )
   }

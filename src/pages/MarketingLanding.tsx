@@ -26,7 +26,7 @@ export function MarketingLanding() {
     login()
     navigate(
       ex.files
-        ? `/projects/${createFromFiles(ex.label, ex.files)}`
+        ? `/projects/${createFromFiles(ex.label, ex.files, ex.contracts)}`
         : `/projects/${createProject(ex.prompt!)}`,
     )
   }

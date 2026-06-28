@@ -1,5 +1,5 @@
 import type { SandpackTheme } from '@codesandbox/sandpack-react'
-import type { FileOp, FileTree } from '../../shared/types'
+import type { FileOp, FileTree, DeployedContract } from '../../shared/types'
 
 /**
  * The user's generated app lives as an in-memory FileTree. Sandpack (classic
@@ -211,6 +211,48 @@ export async function readContract(
 export const addr = (a: string) => new Address(a).toScVal()
 export const i128 = (n: bigint | number) => nativeToScVal(BigInt(n), { type: 'i128' })
 
+export type Movement = {
+  kind: 'in' | 'out' | 'mint'
+  counterparty: string
+  amount: string
+  time: string
+}
+
+/** Recent token movements (transfer/mint events) involving \`user\`, newest first. */
+export async function getTokenActivity(
+  contractId: string,
+  user: string,
+  decimals: number,
+): Promise<Movement[]> {
+  const latest = await server.getLatestLedger()
+  const startLedger = Math.max(latest.sequence - 8000, 1) // ~11h of history
+  const res = await server.getEvents({
+    startLedger,
+    filters: [{ type: 'contract', contractIds: [contractId] }],
+    limit: 100,
+  })
+  const out: Movement[] = []
+  for (const ev of res.events ?? []) {
+    try {
+      const topic = (ev.topic as any[]).map((t) => scValToNative(t))
+      const name = String(topic[0])
+      const amount = fromUnits(BigInt(scValToNative(ev.value as any)), decimals)
+      const time = (ev as any).ledgerClosedAt ?? ''
+      if (name === 'transfer') {
+        const from = String(topic[1]); const to = String(topic[2])
+        if (from === user) out.push({ kind: 'out', counterparty: to, amount, time })
+        else if (to === user) out.push({ kind: 'in', counterparty: from, amount, time })
+      } else if (name === 'mint') {
+        const to = String(topic[1])
+        if (to === user) out.push({ kind: 'mint', counterparty: '', amount, time })
+      }
+    } catch {
+      // skip events we can't decode
+    }
+  }
+  return out.reverse()
+}
+
 /** Human amount -> base units (scaled by the token's decimals). */
 export function toUnits(human: string | number, decimals: number): bigint {
   const s = String(human).trim()
@@ -349,6 +391,7 @@ import {
   getConnectedAddress,
   invokeContract,
   claimTokens,
+  getTokenActivity,
   addr,
   i128,
   toUnits,
@@ -360,6 +403,14 @@ const VIEW_SOURCE = '${DEMO_TOKEN_VIEW_SOURCE}'
 const EXPLORER = 'https://stellar.expert/explorer/testnet/contract/' + TOKEN_ID
 const short = (a: string) => a.slice(0, 4) + '…' + a.slice(-4)
 const fmt = (n: string | number) => Number(n).toLocaleString()
+const ago = (iso: string) => {
+  if (!iso) return ''
+  const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000)
+  if (s < 60) return s + 's ago'
+  if (s < 3600) return Math.floor(s / 60) + 'm ago'
+  if (s < 86400) return Math.floor(s / 3600) + 'h ago'
+  return Math.floor(s / 86400) + 'd ago'
+}
 
 type Toast = { kind: 'ok' | 'err'; text: string } | null
 
@@ -367,6 +418,7 @@ export default function App() {
   const [meta, setMeta] = useState<{ name: string; symbol: string; supply: string } | null>(null)
   const [address, setAddress] = useState<string | null>(null)
   const [balance, setBalance] = useState<string | null>(null)
+  const [activity, setActivity] = useState<any[]>([])
   const [to, setTo] = useState('')
   const [amount, setAmount] = useState('100')
   const [decimals, setDecimals] = useState(18)
@@ -394,16 +446,28 @@ export default function App() {
     catch (e: any) { flash({ kind: 'err', text: e.message }) }
   }, [])
 
+  const loadActivity = useCallback(async (a: string) => {
+    try { setActivity(await getTokenActivity(TOKEN_ID, a, decimals)) } catch {}
+  }, [decimals])
+
+  const refresh = useCallback(async (a: string) => {
+    await Promise.all([loadBalance(a), loadActivity(a), loadMeta()])
+  }, [loadBalance, loadActivity, loadMeta])
+
   useEffect(() => {
     loadMeta()
-    getConnectedAddress().then((a) => { if (a) { setAddress(a); loadBalance(a) } })
-  }, [loadMeta, loadBalance])
+    getConnectedAddress().then((a) => { if (a) { setAddress(a); refresh(a) } })
+  }, [loadMeta, refresh])
 
   const connect = async () => {
     setBusy('connect')
-    try { const a = await connectWallet(); setAddress(a); await loadBalance(a) }
+    try { const a = await connectWallet(); setAddress(a); await refresh(a) }
     catch (e: any) { flash({ kind: 'err', text: e.message }) }
     finally { setBusy('') }
+  }
+
+  const disconnect = () => {
+    setAddress(null); setBalance(null); setActivity([])
   }
 
   const claim = async () => {
@@ -411,7 +475,7 @@ export default function App() {
     setBusy('claim')
     try {
       await claimTokens(address)
-      await Promise.all([loadBalance(address), loadMeta()])
+      await refresh(address)
       flash({ kind: 'ok', text: 'Claimed 1,000 ' + sym + ' 🎉' })
     } catch (e: any) { flash({ kind: 'err', text: e.message }) }
     finally { setBusy('') }
@@ -422,7 +486,7 @@ export default function App() {
     setBusy('send')
     try {
       const hash = await invokeContract(TOKEN_ID, 'transfer', address, [addr(address), addr(to), i128(toUnits(amount, decimals))])
-      await loadBalance(address)
+      await refresh(address)
       setTo('')
       flash({ kind: 'ok', text: 'Sent ' + fmt(amount) + ' ' + sym + ' · ' + short(hash) })
     } catch (e: any) { flash({ kind: 'err', text: e.message }) }
@@ -445,9 +509,12 @@ export default function App() {
             </div>
           </div>
           {address ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm ring-1 ring-slate-200">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />{short(address)}
-            </span>
+            <button onClick={disconnect} title="Disconnect"
+              className="group inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm ring-1 ring-slate-200 transition hover:ring-red-300 hover:text-red-600">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 group-hover:bg-red-500" />
+              <span className="group-hover:hidden">{short(address)}</span>
+              <span className="hidden group-hover:inline">Disconnect</span>
+            </button>
           ) : (
             <button onClick={connect} disabled={busy === 'connect'}
               className="rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-800 disabled:opacity-60">
@@ -506,6 +573,38 @@ export default function App() {
                 {busy === 'send' ? 'Signing…' : 'Sign & send'}
               </button>
             </div>
+
+            {/* Activity */}
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <p className="mb-3 text-sm font-semibold">Activity</p>
+              {activity.length === 0 ? (
+                <p className="text-xs text-slate-400">No movements yet. Claim or send to see them here.</p>
+              ) : (
+                <ul className="space-y-2.5">
+                  {activity.slice(0, 8).map((m, i) => (
+                    <li key={i} className="flex items-center justify-between gap-2 text-sm">
+                      <div className="flex items-center gap-2.5">
+                        <span className={'flex h-7 w-7 items-center justify-center rounded-full text-xs ' +
+                          (m.kind === 'out' ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600')}>
+                          {m.kind === 'out' ? '↑' : '↓'}
+                        </span>
+                        <div>
+                          <p className="font-medium leading-none">
+                            {m.kind === 'out' ? 'Sent' : m.kind === 'mint' ? 'Claimed' : 'Received'}
+                          </p>
+                          <p className="mt-0.5 text-[11px] text-slate-400">
+                            {m.counterparty ? short(m.counterparty) + ' · ' : ''}{ago(m.time)}
+                          </p>
+                        </div>
+                      </div>
+                      <span className={'font-semibold ' + (m.kind === 'out' ? 'text-rose-600' : 'text-emerald-600')}>
+                        {m.kind === 'out' ? '-' : '+'}{m.amount} {sym}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </>
         )}
 
@@ -530,8 +629,23 @@ export interface ExampleApp {
   label: string
   /** Pre-built dApp files (no LLM) — a working demo on a shared contract. */
   files?: FileTree
+  /** Shared pre-deployed contract(s) to seed into the project's Contracts tab. */
+  contracts?: DeployedContract[]
   /** Or a starter prompt the LLM builds from the blank template. */
   prompt?: string
+}
+
+/** The shared Demo token shown in the Contracts tab for the token demo. */
+const DEMO_TOKEN_CONTRACT: DeployedContract = {
+  manifestId: 'oz-fungible-token',
+  name: 'Demo',
+  category: 'token',
+  contractId: DEMO_TOKEN_ID,
+  network: 'testnet',
+  explorerUrl:
+    'https://stellar.expert/explorer/testnet/contract/' + DEMO_TOKEN_ID,
+  config: { name: 'Demo', symbol: 'DEMO', initial_supply: '1000000' },
+  createdAt: 0,
 }
 
 export const EXAMPLE_APPS: ExampleApp[] = [
@@ -543,6 +657,7 @@ export const EXAMPLE_APPS: ExampleApp[] = [
       '/stellar.ts': STELLAR_LIB,
       '/App.tsx': DEMO_TOKEN_APP,
     }),
+    contracts: [DEMO_TOKEN_CONTRACT],
   },
   {
     label: 'NFT minting app',

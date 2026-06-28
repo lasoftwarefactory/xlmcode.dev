@@ -67,7 +67,11 @@ interface ProjectsContextValue {
   projects: ProjectState[]
   getProject: (slug: string) => ProjectState | undefined
   createProject: (prompt: string) => string
-  createFromFiles: (name: string, files: FileTree) => string
+  createFromFiles: (
+    name: string,
+    files: FileTree,
+    contracts?: DeployedContract[],
+  ) => string
   send: (slug: string, text: string, opts?: { kind?: 'system' }) => void
   /** Load a checkpoint's files non-destructively (keeps all versions). */
   openVersion: (slug: string, versionId: string) => void
@@ -242,6 +246,7 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
     fileTree: FileTree,
     messages: ChatMessage[],
     versions: Version[],
+    contracts: DeployedContract[] = [],
   ) => {
     commit({
       ...ref.current,
@@ -258,7 +263,7 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
         generation: 1,
         savedFileTree: fileTree,
         dirty: false,
-        contracts: [],
+        contracts,
       },
     })
   }
@@ -270,7 +275,11 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
     return slug
   }
 
-  const createFromFiles = (name: string, files: FileTree): string => {
+  const createFromFiles = (
+    name: string,
+    files: FileTree,
+    contracts: DeployedContract[] = [],
+  ): string => {
     const slug = `${kebab(name) || 'project'}-${uid().slice(0, 6)}`
     make(
       slug,
@@ -278,6 +287,7 @@ export function ProjectsProvider({ children }: { children: ReactNode }) {
       files,
       [{ role: 'assistant', content: `Loaded "${name}".` }],
       [newVersion('Initial template', `Loaded "${name}".`, files)],
+      contracts,
     )
     return slug
   }
