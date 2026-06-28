@@ -1,6 +1,8 @@
 import { Router } from 'express'
 import { requireUser } from '../middleware/auth.js'
 import { adminClient } from '../lib/supabase.js'
+import { sendEmail } from '../lib/email.js'
+import { shareInviteEmail } from '../emails/templates.js'
 
 const router = Router()
 
@@ -392,6 +394,38 @@ router.post('/projects/:id/share', requireUser, async (req, res) => {
     token: data.token,
     url: `${FRONTEND_ORIGIN}/p/${data.token}`,
   })
+})
+
+/** POST /api/projects/:id/share/email — create a share link + email it (Resend) */
+router.post('/projects/:id/share/email', requireUser, async (req, res) => {
+  const { id } = req.params
+  const { to } = req.body as { to?: string }
+  if (!to) { res.status(400).json({ error: 'recipient email required' }); return }
+
+  // RLS ensures the user can only read/share their own project.
+  const { data: project, error: pErr } = await req.supabase
+    .from('projects')
+    .select('name')
+    .eq('id', id)
+    .single()
+  if (pErr || !project) { res.status(404).json({ error: 'project not found' }); return }
+
+  const { data: share, error: sErr } = await req.supabase
+    .from('project_shares')
+    .insert({ project_id: id, created_by: req.user.id })
+    .select('token')
+    .single()
+  if (sErr) { res.status(500).json({ error: sErr.message }); return }
+
+  const url = `${FRONTEND_ORIGIN}/p/${share.token}`
+  const { subject, html } = shareInviteEmail({
+    projectName: project.name as string,
+    url,
+    fromName: req.user.email ?? undefined,
+  })
+  const result = await sendEmail({ to, subject, html })
+  if (!result.ok) { res.status(502).json({ error: result.error ?? 'email failed' }); return }
+  res.json({ ok: true, url })
 })
 
 /** POST /api/projects/:id/clone — clone a project or template into the caller's

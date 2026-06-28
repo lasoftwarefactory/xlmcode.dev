@@ -6,6 +6,7 @@ import { WorkspacePanel } from '../components/WorkspacePanel'
 import { useProjects } from '../projects/store'
 import { getFreighterAddress } from '../wallet/freighterBridge'
 import { fetchCatalog, deployContract } from '../lib/contracts'
+import { emailShareLink } from '../lib/backend'
 import type { AgentAction } from '../../shared/types'
 
 /** Route "/projects/:slug" — resizable chat | workspace (v0-style). */
@@ -160,6 +161,7 @@ export function Editor() {
             onDeployed={(c) => addDeployedContract(project.slug, c)}
             readOnly={project.readOnly}
             onShare={() => shareProject(project.id ?? '')}
+            onEmailShare={(to) => emailShareLink(project.id ?? '', to)}
             onFixError={(err) =>
               send(
                 project.slug,

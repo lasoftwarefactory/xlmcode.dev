@@ -454,6 +454,7 @@ export function WorkspacePanel({
   onDeployed,
   readOnly = false,
   onShare,
+  onEmailShare,
 }: {
   fileTree: FileTree
   projectId?: string
@@ -476,6 +477,8 @@ export function WorkspacePanel({
   readOnly?: boolean
   /** Create (or fetch) a public read-only share link; returns the URL. */
   onShare?: () => Promise<string>
+  /** Email a share link to a recipient (via Resend). */
+  onEmailShare?: (to: string) => Promise<unknown>
 }) {
   const [tab, setTab] = useState<Tab>('preview')
   const [device, setDevice] = useState<Device>('desktop')
@@ -487,6 +490,21 @@ export function WorkspacePanel({
   const [sharing, setSharing] = useState(false)
   const [shareErr, setShareErr] = useState('')
   const [linkCopied, setLinkCopied] = useState(false)
+  const [emailTo, setEmailTo] = useState('')
+  const [emailState, setEmailState] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
+
+  const sendShareEmail = async () => {
+    const to = emailTo.trim()
+    if (!to || !onEmailShare) return
+    setEmailState('sending')
+    try {
+      await onEmailShare(to)
+      setEmailState('sent')
+      setEmailTo('')
+    } catch {
+      setEmailState('error')
+    }
+  }
 
   const openShare = async () => {
     setShareOpen(true)
@@ -751,6 +769,30 @@ export function WorkspacePanel({
                   {linkCopied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
                   {linkCopied ? 'Copied' : 'Copy link'}
                 </button>
+              </div>
+            )}
+
+            {onEmailShare && (
+              <div className="mt-4 border-t border-zinc-800 pt-4">
+                <p className="mb-2 text-[12px] text-zinc-500">Or send it by email</p>
+                <div className="flex gap-2">
+                  <input
+                    value={emailTo}
+                    onChange={(e) => { setEmailTo(e.target.value); setEmailState('idle') }}
+                    type="email"
+                    placeholder="name@email.com"
+                    className="min-w-0 flex-1 rounded-lg border border-zinc-800 bg-zinc-900/60 px-3 py-2 text-[13px] text-zinc-100 outline-none placeholder:text-zinc-600 focus:border-zinc-600"
+                  />
+                  <button
+                    onClick={() => void sendShareEmail()}
+                    disabled={emailState === 'sending' || !emailTo.trim()}
+                    className="shrink-0 rounded-lg bg-zinc-50 px-3.5 py-2 text-[13px] font-medium text-black transition-colors hover:bg-white disabled:opacity-50"
+                  >
+                    {emailState === 'sending' ? 'Sending…' : 'Send'}
+                  </button>
+                </div>
+                {emailState === 'sent' && <p className="mt-2 text-[12px] text-emerald-400">Sent ✓</p>}
+                {emailState === 'error' && <p className="mt-2 text-[12px] text-red-400">Could not send — check the email is configured.</p>}
               </div>
             )}
           </div>

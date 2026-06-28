@@ -97,6 +97,14 @@ export function cloneShared(token: string): Promise<{ id: string; slug: string; 
   return api(`/api/shared/${token}/clone`, { method: 'POST' })
 }
 
+/** Create a share link for a project and email it via Resend. */
+export function emailShareLink(projectId: string, to: string): Promise<{ ok: boolean; url: string }> {
+  return api(`/api/projects/${projectId}/share/email`, {
+    method: 'POST',
+    body: JSON.stringify({ to }),
+  })
+}
+
 export async function streamChat(
   projectId: string,
   body: { userMessage: string; history?: unknown[]; fileTree?: unknown; modelType?: string },
