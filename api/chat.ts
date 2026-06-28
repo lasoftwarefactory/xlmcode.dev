@@ -31,7 +31,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Guardrail (defense-in-depth): block off-topic / injection / unsafe input
     // before the generation model ever sees it.
-    const gate = await checkGuardrail({ apiKey, model, userMessage })
+    const gate = await checkGuardrail({
+      apiKey,
+      model,
+      userMessage,
+      ongoing: (history?.length ?? 0) > 0,
+    })
     if (!gate.allowed) {
       res.write(
         JSON.stringify({

@@ -138,6 +138,7 @@ function devApi(env: Record<string, string>): Plugin {
               apiKey,
               model,
               userMessage: body.userMessage ?? '',
+              ongoing: (body.history?.length ?? 0) > 0,
             })
             if (!gate.allowed) {
               res.write(

@@ -30,6 +30,7 @@ export function streamChat(params: ChatParams) {
     model: openai(model),
     schema: agentResponseSchema,
     maxRetries: 3,
+    maxOutputTokens: 16000,
     system: buildSystemPrompt({ fileTree, catalog: params.catalog ?? [] }),
     messages: [
       ...history.map((m) => ({ role: m.role, content: m.content })),
@@ -62,6 +63,7 @@ export async function runChat(params: ChatParams): Promise<AgentResponse> {
         model: openai(model),
         schema: agentResponseSchema,
         maxRetries: 2,
+        maxOutputTokens: 16000,
         system: buildSystemPrompt({ fileTree, catalog: params.catalog ?? [] }),
         messages,
       })

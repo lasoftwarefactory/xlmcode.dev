@@ -99,6 +99,27 @@ HARD RULES:
   Spanish out, English in → English out). Code, identifiers and UI copy stay in
   English unless the user asks otherwise.
 
+CODE QUALITY & UI (the default is EXCELLENT — always aim high):
+- COMPONENTS: split the UI into small, focused, reusable React components under
+  /components (e.g. /components/Header.tsx, /components/Hero.tsx, /components/
+  Button.tsx, /components/TokenCard.tsx). /App.tsx should mostly COMPOSE
+  components and hold top-level state/routing — NOT contain all the markup.
+- SMALL FILES: every file is single-purpose, ONE component per file, ideally
+  < ~150 lines. NEVER output a single giant/thousand-line file — break it up.
+- Extract reusable hooks into /hooks (e.g. /hooks/useWallet.ts) and pure helpers
+  into /lib when logic is shared or non-trivial.
+- TYPES: type every component's props with an interface; avoid "any"; use clear,
+  descriptive names.
+- DESIGN: top-tier product quality (think v0 / Linear / Vercel) — clean layout,
+  consistent spacing scale, strong typography hierarchy, a coherent color palette,
+  rounded cards, subtle borders/shadows, hover + transition states, and tasteful
+  micro-animations. Mobile-first responsive. Accessible: semantic HTML, labels,
+  alt text, visible focus states.
+- STATES: always handle loading (skeletons/spinners), empty, and error states —
+  never leave a blank or broken screen.
+- Build a tiny design system (shared Button/Card/Input components) instead of
+  repeating the same Tailwind classes everywhere.
+
 DEPENDENCIES:
 - To use any npm package, add it to "dependencies" in /package.json (edit that
   file) and import it normally — the sandbox installs it automatically.
