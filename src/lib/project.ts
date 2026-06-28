@@ -714,7 +714,7 @@ export default function App() {
 
 /** Shared, pre-deployed Demo NFT collection on testnet (same owner as the token,
  *  so /api/mint-nft signs mints with FAUCET_SECRET). */
-const DEMO_NFT_ID = 'CD23PSOVA7BX7TA7T3XDTJQNAR6CYIV5GF7EBHLYW7GLJ3MOCBNM6E5Z'
+const DEMO_NFT_ID = 'CD4HFX54Y3WIUYZUYRYK5LMNIYSX27CNDFYSZLEVE66MJCVVPSCYA3CU'
 const DEMO_NFT_VIEW_SOURCE =
   'GBDFURES5STGVPMBLLPK4DAL5H2LKRETUSWC7T2YSVJO7PGFKN57DIQS'
 
@@ -923,7 +923,7 @@ const DEMO_NFT_CONTRACT: DeployedContract = {
   contractId: DEMO_NFT_ID,
   network: 'testnet',
   explorerUrl: 'https://stellar.expert/explorer/testnet/contract/' + DEMO_NFT_ID,
-  config: { name: 'Demo NFTs', symbol: 'DNFT', uri: 'http://localhost:5173/api/nft-meta/' },
+  config: { name: 'Demo NFTs', symbol: 'DNFT', uri: 'https://stellar.org/nft/' },
   createdAt: 0,
 }
 

@@ -80,18 +80,6 @@ function devApi(env: Record<string, string>): Plugin {
             })
           }
 
-          if (req.url.startsWith('/api/nft-meta/')) {
-            const { nftMetadata } = await server.ssrLoadModule(
-              '/api/_lib/nftMeta.ts',
-            )
-            const id = Number(req.url.split('?')[0].split('/').pop())
-            res.statusCode = 200
-            res.setHeader('content-type', 'application/json')
-            res.setHeader('access-control-allow-origin', '*')
-            res.end(JSON.stringify(nftMetadata(Number.isFinite(id) ? id : 0)))
-            return
-          }
-
           if (req.url.startsWith('/api/mint-nft')) {
             if (req.method !== 'POST') return send(405, { error: 'POST only' })
             const nchunks: Buffer[] = []

@@ -20,7 +20,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 /** The shared Demo NFT collection (must match DEMO_NFT_ID in src/lib/project.ts). */
 export const DEMO_NFT_ID =
-  'CD23PSOVA7BX7TA7T3XDTJQNAR6CYIV5GF7EBHLYW7GLJ3MOCBNM6E5Z'
+  'CD4HFX54Y3WIUYZUYRYK5LMNIYSX27CNDFYSZLEVE66MJCVVPSCYA3CU'
 
 /** Mint one NFT to `to`. Returns { hash, tokenId }. */
 export async function mintNft(
