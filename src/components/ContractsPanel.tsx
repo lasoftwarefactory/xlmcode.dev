@@ -327,14 +327,22 @@ type ProtocolEntry = {
   blurb: string
   icon: typeof Coins
   logo?: string
+  /** When set, this protocol is LIVE and can be connected (no deploy). */
+  connect?: { manifestId: string; category: string; contractId: string; config: Record<string, unknown> }
 }
 
 const EXISTING_PROTOCOLS: ProtocolEntry[] = [
   {
     name: 'Soroswap',
-    blurb: 'DEX + liquidity aggregator. Best-price swaps.',
+    blurb: 'DEX + liquidity aggregator. Best-price swaps (XLM/USDC).',
     icon: ArrowLeftRight,
     logo: '/logos/soroswap.svg',
+    connect: {
+      manifestId: 'soroswap-router',
+      category: 'dex',
+      contractId: 'CCJUD55AG6W5HAI5LRVNKAE5WDP5XGZBUDS5WNTIVDU7O264UZZE7BRD',
+      config: { pair: 'XLM/USDC', kind: 'existing' },
+    },
   },
   {
     name: 'Blend',
@@ -506,24 +514,48 @@ function AddContractModal({
               {mode === 'existing' && (
                 <div className="flex flex-col gap-3">
                   <p className="text-[12px] leading-relaxed text-zinc-500">
-                    Connect to a live protocol by its contract ID — coming soon.
+                    Connect to a live, audited protocol by its contract ID — no deploy needed.
                   </p>
                   <div className="grid grid-cols-2 gap-2.5">
-                    {EXISTING_PROTOCOLS.map((entry) => (
-                      <div
-                        key={entry.name}
-                        className="relative flex flex-col gap-2 rounded-xl border border-zinc-800 bg-zinc-900/30 p-3.5 opacity-60"
-                      >
-                        <ProtocolLogo logo={entry.logo} name={entry.name} icon={entry.icon} />
-                        <span className="text-[13px] font-medium text-zinc-100">{entry.name}</span>
-                        <span className="line-clamp-3 text-[11.5px] leading-relaxed text-zinc-500">
-                          {entry.blurb}
-                        </span>
-                        <span className="absolute right-2.5 top-2.5 rounded-full bg-zinc-800 px-1.5 py-0.5 text-[10px] font-medium text-zinc-400">
-                          Soon
-                        </span>
-                      </div>
-                    ))}
+                    {EXISTING_PROTOCOLS.map((entry) => {
+                      const live = entry.connect
+                      return (
+                        <div
+                          key={entry.name}
+                          onClick={
+                            live
+                              ? () =>
+                                  onDeployed({
+                                    manifestId: entry.connect!.manifestId,
+                                    name: entry.name,
+                                    category: entry.connect!.category,
+                                    contractId: entry.connect!.contractId,
+                                    network: 'testnet',
+                                    explorerUrl: `https://stellar.expert/explorer/testnet/contract/${entry.connect!.contractId}`,
+                                    config: entry.connect!.config,
+                                    createdAt: Date.now(),
+                                  })
+                              : undefined
+                          }
+                          className={`relative flex flex-col gap-2 rounded-xl border border-zinc-800 bg-zinc-900/30 p-3.5 transition-colors ${
+                            live ? 'cursor-pointer hover:border-zinc-700 hover:bg-zinc-900/60' : 'opacity-60'
+                          }`}
+                        >
+                          <ProtocolLogo logo={entry.logo} name={entry.name} icon={entry.icon} />
+                          <span className="text-[13px] font-medium text-zinc-100">{entry.name}</span>
+                          <span className="line-clamp-3 text-[11.5px] leading-relaxed text-zinc-500">
+                            {entry.blurb}
+                          </span>
+                          <span
+                            className={`absolute right-2.5 top-2.5 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${
+                              live ? 'bg-violet-500/15 text-violet-300' : 'bg-zinc-800 text-zinc-400'
+                            }`}
+                          >
+                            {live ? 'Connect' : 'Soon'}
+                          </span>
+                        </div>
+                      )
+                    })}
                   </div>
                 </div>
               )}

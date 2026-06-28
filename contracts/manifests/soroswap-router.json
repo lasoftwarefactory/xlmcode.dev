@@ -1,0 +1,15 @@
+{
+  "id": "soroswap-router",
+  "name": "Soroswap Router",
+  "description": "Soroswap AMM/DEX router, ALREADY DEPLOYED on Stellar testnet. Connect to it — do NOT deploy it. Use for: token swaps, exchanges, 'swap X for Y', best-price routing, simple DEX UIs. Swaps token-for-token through liquidity pools. The XLM <-> USDC pool has liquidity.",
+  "useFor": "swaps, DEX, exchange, trading tokens, AMM, XLM/USDC",
+  "type": "deployed",
+  "category": "dex",
+  "contractId": "CCJUD55AG6W5HAI5LRVNKAE5WDP5XGZBUDS5WNTIVDU7O264UZZE7BRD",
+  "network": "testnet",
+  "config": [],
+  "methods": [
+    { "name": "router_get_amounts_out", "args": ["amount_in", "path"], "returns": "Vec<i128>", "mutates": false, "description": "QUOTE (read-only): expected output amounts for amount_in along path. path = Vec of token contract addresses [tokenIn, tokenOut]. Read the LAST element as the expected output. Use this to show the quote before swapping." },
+    { "name": "swap_exact_tokens_for_tokens", "args": ["amount_in", "amount_out_min", "path", "to", "deadline"], "returns": "Vec<i128>", "mutates": true, "description": "Swap an exact amount_in for as much output as possible. amount_out_min = quote * (1 - slippage); use 5% slippage. path = [tokenIn, tokenOut]. to = recipient address. deadline = a unix timestamp (seconds) a few minutes in the future. Signed by the connected wallet." }
+  ]
+}

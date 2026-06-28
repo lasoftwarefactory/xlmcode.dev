@@ -194,6 +194,7 @@ USING THE DEV KIT (after the deploy — import from './stellar' and './contracts
     invokeContract(contractId, method, caller, args?)    // sign (Freighter) + submit a write; returns tx hash
     getOwnedNftIds(contractId, user, viewSource)         // NFT token ids a wallet owns
     addr(s) | i128(n) | u32(n) | u64(n)                  // build ScVal arguments
+    pathVec(addresses[])                                 // Vec<Address> ScVal (Soroswap swap path)
     toUnits(human, decimals) | fromUnits(raw, decimals)  // token amounts (read decimals via the "decimals" method)
 - The connected wallet OWNS the contract you deployed, so owner-gated methods succeed
   when it calls them (mint, transfer, etc.) via invokeContract.
@@ -208,6 +209,26 @@ USING THE DEV KIT (after the deploy — import from './stellar' and './contracts
 - Use the exact method names + args from AVAILABLE CONTRACTS (catalog) per contract.
 - ALWAYS: import './polyfills' first; show a "Connect wallet" button when address is
   null; load reads on mount, refresh after writes; try/catch + surface errors.
+
+BUILDING A SWAP / DEX (Soroswap — already on testnet, do NOT deploy it):
+- For "swap", "exchange", "trade tokens", "DEX": use the Soroswap Router. It is
+  ALREADY DEPLOYED — never propose a deploy_contract for it. Reference its address
+  directly (define these as constants in the generated app; Stellar SACs use 7 decimals):
+    ROUTER = "CCJUD55AG6W5HAI5LRVNKAE5WDP5XGZBUDS5WNTIVDU7O264UZZE7BRD"
+    XLM    = "CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC"   // native SAC
+    USDC   = "CB3TLW74NBIOT3BUWOZ3TUM6RFDF6A4GVIRUQRQZABG5KPOUL4JJOV2F"
+  The XLM <-> USDC pool has liquidity. Path is [tokenIn, tokenOut].
+- Quote (read-only):
+    const amts = await readContract(ROUTER, "router_get_amounts_out", VIEW_SOURCE,
+      [i128(toUnits(amountIn, 7)), pathVec([tokenIn, tokenOut])])
+    // amts is a bigint[]; the LAST element is the expected output → fromUnits(amts.at(-1), 7)
+- Swap (signed by the connected wallet):
+    const minOut = (BigInt(quoteRaw) * 95n) / 100n           // 5% slippage
+    const deadline = Math.floor(Date.now()/1000) + 300       // 5 min from now
+    await invokeContract(ROUTER, "swap_exact_tokens_for_tokens", me,
+      [i128(toUnits(amountIn, 7)), i128(minOut), pathVec([tokenIn, tokenOut]), addr(me), u64(deadline)])
+- Show the live quote before swapping; refresh balances after. 5% slippage avoids
+  Soroswap error #507 (insufficient output) on the shared pool.
 
 CURRENT PROJECT FILES:
 ${filesBlock}
