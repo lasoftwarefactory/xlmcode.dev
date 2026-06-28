@@ -35,7 +35,37 @@ export async function sendChat(
     onProgress?.(text)
   }
 
-  return JSON.parse(text) as AgentResponse
+  return parseFirstJsonObject(text) as AgentResponse
+}
+
+/**
+ * Parse the first complete, balanced JSON object from `text`, ignoring anything
+ * before the first `{` or after the matching `}`. The model occasionally appends
+ * stray text after the JSON ("Unexpected non-whitespace character after JSON"),
+ * so a plain JSON.parse(text) would throw — this is tolerant of that.
+ */
+function parseFirstJsonObject(text: string): unknown {
+  const start = text.indexOf('{')
+  if (start < 0) throw new Error('No JSON object in response')
+  let depth = 0
+  let inStr = false
+  let esc = false
+  for (let i = start; i < text.length; i++) {
+    const c = text[i]
+    if (inStr) {
+      if (esc) esc = false
+      else if (c === '\\') esc = true
+      else if (c === '"') inStr = false
+      continue
+    }
+    if (c === '"') inStr = true
+    else if (c === '{') depth++
+    else if (c === '}' && --depth === 0) {
+      return JSON.parse(text.slice(start, i + 1))
+    }
+  }
+  // Unbalanced (e.g. truncated) — let JSON.parse surface a clear error.
+  return JSON.parse(text.slice(start))
 }
 
 /** Live activity derived from the partial JSON stream (cosmetic). */
