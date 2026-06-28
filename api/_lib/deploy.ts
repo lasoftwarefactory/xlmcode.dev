@@ -19,6 +19,7 @@ import {
   BASE_FEE,
   Operation,
   Address,
+  Account,
   nativeToScVal,
   rpc,
   xdr,
@@ -125,16 +126,32 @@ export async function deployContract({
     throw new Error('deployer account never became visible on RPC')
   }
 
+  // Build + submit, re-fetching the account each attempt and retrying on
+  // transient errors: txBadSeq (sequence raced by a prior tx / RPC lag),
+  // txNoAccount (a freshly funded account not yet visible), and MissingValue
+  // (the just-uploaded WASM not yet visible to the create simulation).
+  type Tx = Parameters<rpc.Server['prepareTransaction']>[0]
+  const attemptSubmit = async (makeTx: (account: Account) => Tx) => {
+    for (let i = 0; ; i++) {
+      const tx = makeTx(await getAccount())
+      try {
+        return await submit(server, tx, deployer)
+      } catch (err) {
+        const transient = /txBadSeq|txNoAccount|MissingValue/.test(String(err))
+        if (!transient || i >= 15) throw err
+        await sleep(1000)
+      }
+    }
+  }
+
   // 2. Upload the WASM (published by its sha256 hash).
   const wasmHash = createHash('sha256').update(wasm).digest()
-  const uploadTx = new TransactionBuilder(await getAccount(), {
-    fee: BASE_FEE,
-    networkPassphrase: PASSPHRASE,
-  })
-    .addOperation(Operation.uploadContractWasm({ wasm }))
-    .setTimeout(60)
-    .build()
-  await submit(server, uploadTx, deployer)
+  await attemptSubmit((account) =>
+    new TransactionBuilder(account, { fee: BASE_FEE, networkPassphrase: PASSPHRASE })
+      .addOperation(Operation.uploadContractWasm({ wasm }))
+      .setTimeout(60)
+      .build(),
+  )
 
   // 3. Create the contract, invoking __constructor with the config (ordered).
   const fields = new Map(manifest.config.map((f) => [f.key, f]))
@@ -144,12 +161,8 @@ export async function deployContract({
     return toScVal(config[key] ?? field.default, scTypeOf(field), deployerPk)
   })
 
-  let result: Awaited<ReturnType<typeof submit>> | null = null
-  for (let i = 0; result === null; i++) {
-    const createTx = new TransactionBuilder(await getAccount(), {
-      fee: BASE_FEE,
-      networkPassphrase: PASSPHRASE,
-    })
+  const result = await attemptSubmit((account) =>
+    new TransactionBuilder(account, { fee: BASE_FEE, networkPassphrase: PASSPHRASE })
       .addOperation(
         Operation.createCustomContract({
           address: new Address(deployerPk),
@@ -158,15 +171,8 @@ export async function deployContract({
         }),
       )
       .setTimeout(60)
-      .build()
-    try {
-      result = await submit(server, createTx, deployer)
-    } catch (err) {
-      // The just-uploaded WASM can lag the create simulation a few seconds.
-      if (!String(err).includes('MissingValue') || i >= 15) throw err
-      await sleep(1000)
-    }
-  }
+      .build(),
+  )
 
   const contractId = Address.fromScAddress(
     result.response.returnValue!.address(),
