@@ -1,7 +1,8 @@
 {
   "id": "oz-nft",
-  "name": "Non-Fungible Token",
-  "description": "OpenZeppelin NFT with sequential minting. Owner mints tokens with auto-incrementing IDs under a shared collection URI.",
+  "name": "Non-Fungible Token (NFT)",
+  "description": "A collection of unique tokens with sequential ids. Use for: collectibles, art, memberships, badges, passes, tickets, proof-of-ownership. Owner mints tokens (each gets an auto-incrementing id) under a shared collection URI.",
+  "useFor": "collectibles, art, memberships, badges, passes, tickets",
   "type": "deployable",
   "category": "nft",
   "wasmPath": "contracts/wasm/nft.wasm",
@@ -16,11 +17,11 @@
     { "key": "owner", "label": "Owner", "type": "address", "default": "{{deployer}}" }
   ],
   "methods": [
-    { "name": "mint", "args": ["to"], "returns": "u32", "mutates": true },
-    { "name": "owner_of", "args": ["token_id"], "returns": "address", "mutates": false },
-    { "name": "balance", "args": ["owner"], "returns": "u32", "mutates": false },
-    { "name": "transfer", "args": ["from", "to", "token_id"], "returns": "void", "mutates": true },
-    { "name": "name", "args": [], "returns": "string", "mutates": false },
-    { "name": "symbol", "args": [], "returns": "string", "mutates": false }
+    { "name": "mint", "args": ["to"], "returns": "u32", "mutates": true, "description": "Mint a new token to an address; returns the new token id. OWNER ONLY." },
+    { "name": "owner_of", "args": ["token_id"], "returns": "address", "mutates": false, "description": "Who owns a given token id." },
+    { "name": "balance", "args": ["owner"], "returns": "u32", "mutates": false, "description": "How many tokens an address owns." },
+    { "name": "transfer", "args": ["from", "to", "token_id"], "returns": "void", "mutates": true, "description": "Transfer one token to another address (caller must own it)." },
+    { "name": "name", "args": [], "returns": "string", "mutates": false, "description": "Collection name." },
+    { "name": "symbol", "args": [], "returns": "string", "mutates": false, "description": "Collection symbol." }
   ]
 }

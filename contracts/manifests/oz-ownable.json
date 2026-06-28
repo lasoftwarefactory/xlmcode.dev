@@ -1,7 +1,8 @@
 {
   "id": "oz-ownable",
-  "name": "Ownable",
-  "description": "OpenZeppelin single-owner access control. One account is authorized for all privileged actions; ownership is transferable in two steps.",
+  "name": "Ownable (access control)",
+  "description": "Single-owner access control. One account is the owner; ownership can be handed off in a safe two-step transfer. Use for: an admin/ownership primitive or a simple 'who controls this' page. NOT a general app on its own — it has no business logic, counters or storage beyond the owner.",
+  "useFor": "ownership / admin control, transferring ownership",
   "type": "deployable",
   "category": "access",
   "wasmPath": "contracts/wasm/ownable.wasm",
@@ -13,10 +14,9 @@
     { "key": "owner", "label": "Owner", "type": "address", "default": "{{deployer}}" }
   ],
   "methods": [
-    { "name": "get_owner", "args": [], "returns": "address", "mutates": false },
-    { "name": "transfer_ownership", "args": ["new_owner", "live_until_ledger"], "returns": "void", "mutates": true },
-    { "name": "accept_ownership", "args": [], "returns": "void", "mutates": true },
-    { "name": "renounce_ownership", "args": [], "returns": "void", "mutates": true },
-    { "name": "increment", "args": [], "returns": "i32", "mutates": true }
+    { "name": "get_owner", "args": [], "returns": "address", "mutates": false, "description": "The current owner address." },
+    { "name": "transfer_ownership", "args": ["new_owner", "live_until_ledger"], "returns": "void", "mutates": true, "description": "Start handing ownership to a new address. OWNER ONLY." },
+    { "name": "accept_ownership", "args": [], "returns": "void", "mutates": true, "description": "New owner accepts the pending transfer." },
+    { "name": "renounce_ownership", "args": [], "returns": "void", "mutates": true, "description": "Give up ownership permanently. OWNER ONLY." }
   ]
 }

@@ -29,6 +29,7 @@ export function streamChat(params: ChatParams) {
   return streamObject({
     model: openai(model),
     schema: agentResponseSchema,
+    maxRetries: 3,
     system: buildSystemPrompt({ fileTree, catalog: params.catalog ?? [] }),
     messages: [
       ...history.map((m) => ({ role: m.role, content: m.content })),
@@ -47,18 +48,31 @@ export function streamChat(params: ChatParams) {
 export async function runChat(params: ChatParams): Promise<AgentResponse> {
   const { apiKey, fileTree, history, userMessage } = params
   const model = params.model ?? process.env.OPENAI_MODEL ?? DEFAULT_MODEL
-
   const openai = createOpenAI({ apiKey })
+  const messages = [
+    ...history.map((m) => ({ role: m.role, content: m.content })),
+    { role: 'user' as const, content: userMessage },
+  ]
 
-  const { object } = await generateObject({
-    model: openai(model),
-    schema: agentResponseSchema,
-    system: buildSystemPrompt({ fileTree, catalog: params.catalog ?? [] }),
-    messages: [
-      ...history.map((m) => ({ role: m.role, content: m.content })),
-      { role: 'user' as const, content: userMessage },
-    ],
-  })
-
-  return object
+  // Retry on transient structured-output parse failures ("No object generated").
+  let lastErr: unknown
+  for (let i = 0; i < 3; i++) {
+    try {
+      const { object } = await generateObject({
+        model: openai(model),
+        schema: agentResponseSchema,
+        maxRetries: 2,
+        system: buildSystemPrompt({ fileTree, catalog: params.catalog ?? [] }),
+        messages,
+      })
+      return object
+    } catch (err) {
+      lastErr = err
+      const transient = /No object generated|could not parse|response did not match/i.test(
+        String(err),
+      )
+      if (!transient) throw err
+    }
+  }
+  throw lastErr
 }

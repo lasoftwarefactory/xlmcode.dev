@@ -1,7 +1,8 @@
 {
   "id": "oz-fungible-token",
   "name": "Fungible Token",
-  "description": "OpenZeppelin fungible token (SEP-41 compatible) with an owner-gated mint and pause switch. Configure name, symbol and initial supply.",
+  "description": "A standard fungible token (SEP-41). Use for: currencies, points, in-app credits, rewards, tip jars, anything with a divisible balance. Owner can mint more and pause transfers. 18 decimals.",
+  "useFor": "currencies, points, credits, rewards, tipping, fundraising",
   "type": "deployable",
   "category": "token",
   "wasmPath": "contracts/wasm/fungible-token.wasm",
@@ -16,12 +17,15 @@
     { "key": "initial_supply", "label": "Initial supply", "type": "number", "default": 1000000 }
   ],
   "methods": [
-    { "name": "balance", "args": ["account"], "returns": "i128", "mutates": false },
-    { "name": "total_supply", "args": [], "returns": "i128", "mutates": false },
-    { "name": "transfer", "args": ["from", "to", "amount"], "returns": "void", "mutates": true },
-    { "name": "approve", "args": ["owner", "spender", "amount", "live_until_ledger"], "returns": "void", "mutates": true },
-    { "name": "mint", "args": ["account", "amount"], "returns": "void", "mutates": true },
-    { "name": "pause", "args": [], "returns": "void", "mutates": true },
-    { "name": "unpause", "args": [], "returns": "void", "mutates": true }
+    { "name": "balance", "args": ["account"], "returns": "i128", "mutates": false, "description": "Token balance of an account." },
+    { "name": "total_supply", "args": [], "returns": "i128", "mutates": false, "description": "Total tokens in circulation." },
+    { "name": "decimals", "args": [], "returns": "u32", "mutates": false, "description": "Decimal places (18) — divide raw balances by 10^decimals." },
+    { "name": "name", "args": [], "returns": "string", "mutates": false, "description": "Token name." },
+    { "name": "symbol", "args": [], "returns": "string", "mutates": false, "description": "Token symbol." },
+    { "name": "transfer", "args": ["from", "to", "amount"], "returns": "void", "mutates": true, "description": "Send tokens from the caller to another address (needs balance)." },
+    { "name": "approve", "args": ["owner", "spender", "amount", "live_until_ledger"], "returns": "void", "mutates": true, "description": "Allow a spender to move some of your tokens." },
+    { "name": "mint", "args": ["account", "amount"], "returns": "void", "mutates": true, "description": "Create new tokens to an account. OWNER ONLY." },
+    { "name": "pause", "args": [], "returns": "void", "mutates": true, "description": "Pause all transfers. OWNER ONLY." },
+    { "name": "unpause", "args": [], "returns": "void", "mutates": true, "description": "Resume transfers. OWNER ONLY." }
   ]
 }

@@ -37,6 +37,8 @@ export interface ManifestMethod {
   args: string[]
   returns: string
   mutates: boolean
+  /** Plain-language description of what the method does. */
+  description?: string
 }
 
 /**
@@ -47,6 +49,8 @@ export interface Manifest {
   id: string
   name: string
   description: string
+  /** Short list of what this contract is good for (guides the LLM's choice). */
+  useFor?: string
   type: 'deployable' | 'deployed'
   category: 'token' | 'access' | 'nft' | 'oracle' | 'dex' | (string & {})
   wasmPath?: string
