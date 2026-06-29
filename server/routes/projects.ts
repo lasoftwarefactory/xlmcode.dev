@@ -6,7 +6,10 @@ import { shareInviteEmail } from '../emails/templates.js'
 
 const router = Router()
 
-const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN ?? 'http://localhost:5173'
+// First entry is the canonical origin (used to build share links).
+const FRONTEND_ORIGIN = (process.env.FRONTEND_ORIGIN ?? 'http://localhost:5173')
+  .split(',')[0]
+  .trim()
 
 /** Map a deployed_contracts row (snake_case) to the frontend DeployedContract
  *  shape (camelCase). Without this, contractId/manifestId/explorerUrl come back

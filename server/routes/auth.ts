@@ -25,7 +25,10 @@ function publicUser(u: User) {
   }
 }
 
-const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN ?? 'http://localhost:5173'
+// First entry is the canonical origin (post-login redirect target).
+const FRONTEND_ORIGIN = (process.env.FRONTEND_ORIGIN ?? 'http://localhost:5173')
+  .split(',')[0]
+  .trim()
 const API_BASE = process.env.API_BASE ?? 'http://localhost:8787'
 
 /**

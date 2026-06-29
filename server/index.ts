@@ -10,13 +10,18 @@ import contractsRouter from './routes/contracts.js'
 import chatRouter from './routes/chat.js'
 
 const PORT = parseInt(process.env.PORT ?? '8787', 10)
-const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN ?? 'http://localhost:5173'
+// FRONTEND_ORIGIN may be a comma-separated list (e.g. apex + www). CORS echoes
+// back whichever allowed origin made the request.
+const FRONTEND_ORIGINS = (process.env.FRONTEND_ORIGIN ?? 'http://localhost:5173')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean)
 
 const app = express()
 
 app.use(
   cors({
-    origin: FRONTEND_ORIGIN,
+    origin: FRONTEND_ORIGINS,
     credentials: true,
   }),
 )
