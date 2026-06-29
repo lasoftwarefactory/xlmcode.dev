@@ -108,11 +108,6 @@ supabase/    SQL migrations
 openspec/    Specs & project conventions (see openspec/project.md)
 ```
 
-## Deployment
-
-Production = frontend on Vercel + Express backend on a VPS (Dokploy/Traefik)
-behind Cloudflare. Step-by-step in **[DEPLOY.md](DEPLOY.md)**.
-
 ## Contributing
 
 Read [AGENTS.md](AGENTS.md) for architecture, conventions and the workflow. Capability
