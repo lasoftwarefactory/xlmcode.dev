@@ -51,8 +51,7 @@ Copy `env.example` → `.env.local` (gitignored — **never commit real secrets*
 | `OPENAI_API_KEY` | [platform.openai.com](https://platform.openai.com/api-keys) → API keys |
 | `OPENAI_MODEL` | Model id, e.g. `gpt-5.4-mini` (overridden per-tier by the `models` table) |
 | `SUPABASE_URL` | Supabase → Project Settings → Data API → Project URL |
-| `VITE_SUPABASE_URL` | Same value as `SUPABASE_URL` (exposed to the browser) |
-| `VITE_SUPABASE_PUBLISHABLE_KEY` | Supabase → Project Settings → API Keys → **publishable** key |
+| `SUPABASE_PUBLISHABLE_KEY` | Supabase → Project Settings → API Keys → **publishable** key (server-side RLS client) |
 | `SUPABASE_SECRET_KEY` | Supabase → Project Settings → API Keys → **secret** key (server only) |
 | `SUPABASE_DB_PASSWORD` | Supabase → Project Settings → Database → password (for `supabase db push`) |
 | `RESEND_API_KEY` | [resend.com](https://resend.com/api-keys) → API Keys |

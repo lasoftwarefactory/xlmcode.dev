@@ -6,10 +6,9 @@ Auth providers in the dashboard. Follow these steps once.
 
 ## 0. Env vars (`.env.local`, already mostly set)
 ```
-SUPABASE_URL=...                       # already set
-SUPABASE_SECRET_KEY=sb_secret_...      # already set (server only, NEVER in the browser)
-VITE_SUPABASE_URL=...                  # already set
-VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...  # already set
+SUPABASE_URL=...                       # server-side
+SUPABASE_PUBLISHABLE_KEY=sb_publishable_...  # server-side (per-request RLS client)
+SUPABASE_SECRET_KEY=sb_secret_...      # server only, NEVER in the browser
 OPENAI_API_KEY=...                     # already set
 OPENAI_MODEL=gpt-5.4-mini              # fallback if the models table is unreachable
 FAUCET_SECRET=...                      # already set
@@ -62,12 +61,9 @@ deployed contracts now persist in Supabase. Rate limit: 50 prompts your first da
 20/day after (admins unlimited).
 
 ## 5. Deploy
-- **Frontend → Vercel**: build the SPA, set `VITE_API_BASE=https://api.xlmcode.dev`,
-  `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`. DNS `app.xlmcode.dev` → Vercel.
-- **Backend → Hostinger VPS**: run `server/index.ts` (e.g. `pm2 start "pnpm tsx server/index.ts"`
-  or compile + `node`), env: `NODE_ENV=production`, `COOKIE_DOMAIN=.xlmcode.dev`,
-  `FRONTEND_ORIGIN=https://app.xlmcode.dev`, `PORT=...`, all Supabase + OpenAI + FAUCET secrets.
-  Put it behind HTTPS (nginx/caddy) at `api.xlmcode.dev`. DNS `api.xlmcode.dev` → VPS.
+
+See **[DEPLOY.md](DEPLOY.md)** — backend on Dokploy → Cloudflare → Supabase → Vercel.
+The frontend (Vercel) only needs `VITE_API_BASE`; all Supabase keys are server-side.
 - Same parent domain (`xlmcode.dev`) for app./api. = first-party cookies → login works on all browsers.
 
 ## ⚠️ Honest status
